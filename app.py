@@ -1,7 +1,8 @@
 from flask import Flask, request, jsonify
-from coherence_engine import BayesianClassifier, MarkovChain, InteractionLogger
+from coherence_engine import BayesianClassifier, InteractionLogger, get_response
 from coherence_engine.utils import load_json_data
 import math
+import json
 
 app = Flask(__name__)
 
@@ -9,8 +10,6 @@ app = Flask(__name__)
 train_data = load_json_data("train_data.json")
 bayesian = BayesianClassifier()
 bayesian.train(train_data["bayesian"])
-markov = MarkovChain(order=1)
-markov.train(train_data["markov"])
 logger = InteractionLogger("interactions.json")
 
 @app.route("/interact", methods=["POST"])
@@ -21,23 +20,28 @@ def interact():
     # Bayesian intent detection
     bayesian_explanation = bayesian.explain(user_input)
     predicted_intent = bayesian_explanation["predicted_label"]
-
-    # Markov response generation
-    markov_explanation = markov.explain(user_input)
+    confidence = bayesian_explanation["probabilities"][predicted_intent]
 
     # Calculate entropy
     probabilities = bayesian_explanation["probabilities"]
     entropy = -sum(p * math.log(p) if p > 0 else 0 for p in probabilities.values())
 
+    # Get dictionary-based response
+    response_data = get_response(
+        intent=predicted_intent,
+        confidence=confidence,
+        explanation=json.dumps(probabilities)
+    )
+
     # Prepare response
     system_output = {
         "intent": predicted_intent,
-        "response": markov_explanation["response"],
-        "confidence": bayesian_explanation["probabilities"][predicted_intent],
+        "response": response_data["response"],
+        "confidence": confidence,
         "entropy": entropy,
         "explanation": {
             "bayesian": bayesian_explanation,
-            "markov": markov_explanation
+            "response_explanation": response_data["explanation"]
         }
     }
 
