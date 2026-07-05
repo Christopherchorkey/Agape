@@ -26,11 +26,12 @@ def interact():
     probabilities = bayesian_explanation["probabilities"]
     entropy = -sum(p * math.log(p) if p > 0 else 0 for p in probabilities.values())
 
-    # Get dictionary-based response
+    # Get resonant response
     response_data = get_response(
         intent=predicted_intent,
         confidence=confidence,
-        explanation=json.dumps(probabilities)
+        explanation=json.dumps(probabilities),
+        user_input=user_input
     )
 
     # Prepare response

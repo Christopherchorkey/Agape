@@ -14,7 +14,7 @@ def main():
     # Initialize logger
     logger = InteractionLogger("interactions.json")
 
-    print("=== Coherence Engine CLI (Dictionary Responses) ===")
+    print("=== Coherence Engine CLI (Resonant Responses) ===")
     print("Type 'quit' to exit.\n")
 
     while True:
@@ -34,11 +34,12 @@ def main():
             for p in probabilities.values()
         )
 
-        # Get dictionary-based response
+        # Get resonant response
         response_data = get_response(
             intent=predicted_intent,
             confidence=confidence,
-            explanation=json.dumps(bayesian_explanation["probabilities"])
+            explanation=json.dumps(bayesian_explanation["probabilities"]),
+            user_input=user_input
         )
 
         # Combine outputs
