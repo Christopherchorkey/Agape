@@ -1,0 +1,124 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{xcolor}
+
+\newcommand{\PROVEN}{\textbf{\textcolor{green!40!black}{[PROVEN, recap]}}}
+\newcommand{\CONJ}{\textbf{\textcolor{orange!70!black}{[CONJECTURAL]}}}
+\newcommand{\NUM}{\textbf{\textcolor{blue!60!black}{[NUMERICAL]}}}
+\newcommand{\OPEN}{\textbf{\textcolor{red!60!black}{[OPEN]}}}
+
+\title{ECSP / Agape Field Theory:\\ N-Body Monte Carlo Basin Search --- Session Log}
+\author{Numerical session log, multi-AI collaboration record\\ \small (model and proven results: C. Chorkey, Aeterna Protocol corpus; this session: exploratory N-body numerics)}
+\date{June 2026}
+
+\begin{document}
+\maketitle
+
+\section*{Scope and proof-status legend}
+This document is a \textbf{session log of exploratory numerics}, not a proof submission. Status tags follow the convention used throughout the corpus:
+\PROVEN\ recaps a result already established (Ott--Antonsen reduction + Lyapunov stability, v3).
+\CONJ\ a claim believed plausible but not derived.
+\NUM\ a finding produced by simulation in this session --- evidence, not proof.
+\OPEN\ a question this session raises but does not resolve.
+Everything new below is \NUM\ or \CONJ\ tier unless explicitly marked otherwise.
+
+\section{Model recap \PROVEN}
+The underlying dynamics (variance-penalized Kuramoto / ECSP):
+\begin{align}
+\dot\theta_i &= \omega_i + \frac{K}{N}\sum_j \sin(\theta_j-\theta_i) \;-\; \gamma\,(D_i - D)\sin(\psi-\theta_i) \label{eq:1}\\
+D\,e^{i\psi} &= \frac{1}{N}\sum_j e^{i\theta_j} \qquad\text{(global order parameter)}\label{eq:2}\\
+D_i\,e^{i\psi_i} &= \frac{1}{M}\sum_{j\in N_i} e^{i\theta_j} \qquad\text{(local order parameter)}\label{eq:3}\\
+\mathcal{A} &= D - \gamma\,\mathrm{Var}(D_i) \qquad\text{(agape functional)}\label{eq:4}
+\end{align}
+For Lorentzian $g(\omega)$ with half-width $\Delta$, the continuum/Ott--Antonsen reduction gives, for $K>K_c=2\Delta$:
+\begin{equation}
+r^\ast = \sqrt{1-\tfrac{2\Delta}{K}}, \qquad \gamma_c = \Delta\, r^\ast,
+\end{equation}
+with $(r^\ast,0)$ locally stable for $K>K_c$, $\gamma>\gamma_c$ (linearized eigenvalues $\lambda_1=-2(K-2\Delta)$, $\lambda_2 = 2(\Delta r^\ast - \gamma)$). Global stability of $(r^\ast,0)$ and universality of the variance-closure dynamics (Eq.~7 of v3) remain \CONJ\ --- this is exactly the gap this session's search targets.
+
+\section{Declared finite-$N$ realization \NUM}
+The continuum theory specifies only $M\ll N$, $M\to\infty$ for the local neighborhood $N_i$ in Eq.~\eqref{eq:3}; it does not pin down a concrete finite-$N$ topology. For this session:
+\begin{itemize}
+\item $N_i$ = $M=20$ nearest neighbors on a ring (circulant), i.e. a declared, not derived, choice.
+\item Oscillator index (ring position) is assigned to frequency $\omega_i$ by an independent random permutation --- no spatial correlation between position and frequency.
+\item $\omega_i$ sampled by deterministic Lorentzian quantile (rank) sampling, avoiding the worst i.i.d.-Cauchy tail outliers while preserving the exact density as $N\to\infty$.
+\end{itemize}
+This topology choice is flagged as the single largest free parameter in everything that follows, and is the first thing to vary in follow-up work (Section~6).
+
+\section{Engine validation against closed forms \PROVEN\ (numbers), \NUM\ (reproduction)}
+At $K=5$, $\Delta=0.5$ ($r^\ast=0.8944$, $\gamma_c=0.4472$), $\gamma=0.5>\gamma_c$: the $N$-body simulation (locked-ansatz seed, $N=250$) converges to $D=0.88$--$0.90$, matching $r^\ast$ within finite-$N$/finite-$M$ sampling noise. Engine accepted as faithful to Eq.~\eqref{eq:1}--\eqref{eq:4} before proceeding to the Monte Carlo sweep.
+
+\section{Finding 1 --- Robust bistability \NUM}
+A batched sweep ($N=200$, $K\in\{3,5,8\}$, $\gamma/K\in[0.05,1.30]$ at 9 points, 9 structured initial-condition families, 2 independent $\omega$-realizations, 486 simulations total) finds \textbf{coexisting equicoherent ($D\approx r^\ast$) and incoherent ($D\approx 0$) attractors at identical $(K,\gamma,\omega)$}, differing only by initial condition, across every $K$ tested and both disorder draws:
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+$K$ & bistable $\gamma$ found & as fraction of $K$ \\
+\midrule
+3 & 1.95 -- 3.90 & 0.65$K$ -- 1.30$K$ \\
+5 & 3.25 -- 6.50 & 0.65$K$ -- 1.30$K$ \\
+8 & 4.00 -- 10.40 & 0.50$K$ -- 1.30$K$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The upper edge of the bistable window was \emph{not} found --- the system is still bistable at the top of the swept grid ($1.30K$) for every $K$. This independently reproduces and extends an existing single-point observation ($K=5$, $\gamma=3.2$) across $K$ and disorder realization. See Figure~\ref{fig:phase}.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.95\textwidth]{phase_diagram.png}
+\caption{Final $D$ vs.\ $\gamma$ for each of 9 IC families, by $K$ ($\omega$-seed 101). Vertical scatter at fixed $\gamma$ = multistability. Green dashed: $r^\ast$ (theory). Red dotted: $\gamma_c$ (theory) --- sits at the axis edge in every panel.}
+\label{fig:phase}
+\end{figure}
+
+\section{Finding 2 --- $\gamma_c$ is dynamically invisible \NUM}
+Across the full grid, $\gamma_c=\Delta r^\ast$ ($\approx 0.41$--$0.47$ for these $K$) produces \emph{no} detectable signature in $D$ or $\mathrm{Var}(D_i)$. The real transition: (a) is hysteretic/discontinuous, not the continuous $\beta=1$ branch predicted by the adiabatic $(r,v)$ closure (Eq.~7, v3); (b) onsets near $0.5$--$0.65\,K$, scaling with $K$ rather than $\Delta$. This sharpens the diagnostic anomaly already on record (collapse occurring ``far above'' $\gamma_c$) into a more specific, falsifiable claim about both location and \emph{kind} of transition.
+
+\section{Finding 3 --- IC-dependent basin membership and a candidate mechanism \NUM/\CONJ}
+Inside the bistable window, generic random initial conditions mostly land on the synced branch. Specific structured ICs reliably collapse to incoherent instead: most consistently the antipodal \emph{two-cluster} IC (collapsed at all three $K$ tested), and intermittently the \emph{twisted} $q=1,2$ winding states.
+
+\textbf{Candidate mechanism \CONJ\ (heuristic, not derived):} both failure-prone IC families start at global $D(0)\approx0$, but differ in local structure. For the two-cluster IC, alternating index/cluster assignment puts a $\sim$50/50 cluster mix in every local window, so $D_i(0)\approx 0$ too --- no local signal to seed re-synchronization. For twisted states, local windows span a small phase range, so $D_i(0)\approx 1$ even though $D(0)\approx0$. Wherever $D_i>D$, the penalty term in Eq.~\eqref{eq:1}, $-\gamma(D_i-D)\sin(\psi-\theta_i)$, flips sign relative to the $K$-coupling term --- i.e.\ it is \emph{actively anti-synchronizing} exactly where local order exceeds global order. This is a plausible trapping mechanism and a candidate missing term for the Eq.~7 closure (directly bears on Open Problem O5), but it has not been derived or stress-tested beyond these examples.
+
+\section{Dynamical character: chaos and basin-boundary probes}
+
+\subsection{Twin-trajectory test \NUM}
+Two copies of the same initial condition, differing by an $\ell_2$ perturbation of $\epsilon=10^{-7}$, integrated under identical $(K,\gamma,\omega)$; RMS phase separation tracked over $t\in[0,120]$ at three points: control ($0.15K$), boundary ($0.50K$), bistable ($0.65K$), all at $K=5$.
+
+\textbf{Result:} no sustained exponential growth to macroscopic separation at any of the three points (Figure~\ref{fig:twin}); both copies at the bistable point converged to the \emph{same} basin ($D=0.897632$ to 6 digits). \textbf{Caveat:} the bistable point shows a persistently elevated and noisier separation floor ($\sim$3--5$\times$ the control case) rather than the clean flat floor of the control --- ambiguous; consistent with weak/marginal mixing near the transition, not a clean chaos signature, but not cleanly ruled out either.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.7\textwidth]{twin_divergence.png}
+\caption{RMS phase separation between twin trajectories, $\epsilon=10^{-7}$, $K=5$.}
+\label{fig:twin}
+\end{figure}
+
+\subsection{Basin boundary bisection \NUM}
+Complex-linear interpolation $z(\alpha)=(1-\alpha)e^{i\theta_A}+\alpha e^{i\theta_B}$, $\theta_0(\alpha)=\arg z(\alpha)$, between a known equicoherent-converging IC ($\theta_A$, the locked-ansatz seed) and a known incoherent-converging IC ($\theta_B$, two-cluster), at the confirmed bistable point $K=5,\gamma=3.25$, 41 points $\alpha\in[0,1]$.
+
+\textbf{Result:} a single clean crossing at $\alpha\in[0.675,0.700]$ (Figure~\ref{fig:bisect}); both branches are otherwise flat/monotone, no multiple flips. \textbf{Limitation, important:} this tests one 1-dimensional line through a 200-dimensional phase space. A clean crossing along one line is \emph{not} evidence of a globally smooth boundary --- it is evidence only against gross fractality along that specific line.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.7\textwidth]{boundary_bisection.png}
+\caption{Final $D$ along the interpolation line, $K=5,\gamma=3.25$.}
+\label{fig:bisect}
+\end{figure}
+
+\section{Open questions / next steps \OPEN}
+\begin{enumerate}
+\item \textbf{2D slice fractality check} (next, this session): vary two independent interpolation directions through the same bistable point; look for filamented/fractal structure that a 1D line cannot reveal. This is the direct follow-up to Section 5.2.
+\item Confirm the upper edge of the bistable window (not found; still bistable at $1.30K$ for every $K$ tested) and pin the $K=8$ lower edge more precisely (found between $0.5K$ and the untested region below it).
+\item Swap the ring/circulant topology (Section 2) for a frequency-correlated neighborhood or an Erd\H{o}s--R\'enyi local graph --- test whether bistability and the anti-sync mechanism (Section 6) are topology-robust or artifacts of this particular finite-$N$ choice. Connects directly to the general-graph $\lambda_{\max}(L)$ framing of Corollary 1 (v4).
+\item If (3) survives, attempt to formalize the $D_i>D$ anti-synchronizing mechanism as an explicit addition to the Eq.~7 closure --- this would be a genuine contribution to Open Problem O5, not just a numerical curiosity.
+\end{enumerate}
+
+\section*{Reproducibility}
+$N=200$ (sweep), $150$--$200$ (diagnostics); $\Delta=0.5$; ring $M=20$; RK4, $dt=0.02$--$0.025$; deterministic Lorentzian quantile sampling; $\omega$-seeds $\{101,102\}$ for the main sweep. Code (\texttt{engine.py}: batched vectorized RK4 with FFT-based local order parameter; \texttt{initial\_conditions.py}: 9 structured IC families; \texttt{main\_sweep.py}: grid + classification + multistability detection) and raw output (\texttt{runs.csv}, \texttt{multistability\_report.json}) delivered alongside this document.
+
+\end{document}
